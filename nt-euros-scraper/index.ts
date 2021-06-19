@@ -31,7 +31,7 @@ import cheerio from 'cheerio';
     })
     .toArray()
     .filter((e) => e !== null);
-  for (const eventId of eventIds) {
+  for (const eventId of eventIds.slice(0, 1)) {
     const eventPage = await browser.newPage();
     await eventPage.goto(
       `https://www.norsk-tipping.no/sport/oddsen/sportsbook/event/${eventId}`,
@@ -39,11 +39,32 @@ import cheerio from 'cheerio';
         waitUntil: 'networkidle2',
       }
     );
-    await eventPage.screenshot({
-      fullPage: true,
-      path: `${eventId}.png`,
-    });
+    const $ = cheerio.load(await eventPage.content());
+    const title = $('h1').text();
+    console.log(title);
+    const teams = title.split('-').map((t) => t.trim());
+    console.log(teams);
+    const events = $('.event')
+      .map((i, elem) => {
+        const runners = $(elem)
+          .find('[tabindex="-1"]')
+          .map((i, elem) => {
+            const spans = $(elem)
+              .find('span')
+              .map((i, elem) => $(elem).text());
+            const [name, odds] = spans;
+            return [name, +odds];
+          })
+          .toArray();
+        return {
+          marketType: $(elem).find('p').first().text(),
+          runners,
+        };
+      })
+      .toArray();
+    console.log(events);
+
+    fs.writeFileSync(`${eventId}.html`, await eventPage.content());
   }
-  console.log(eventIds);
   await browser.close();
 })();
