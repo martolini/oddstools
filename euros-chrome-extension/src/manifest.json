@@ -11,6 +11,7 @@
     "128": "icon-128.png"
   },
   "permissions": ["storage"],
+  "host_permissions": ["https://storage.googleapis.com/nt-odds/*"],
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*", "<all_urls>"],
