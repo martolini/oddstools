@@ -1,17 +1,9 @@
 import puppeteer from 'puppeteer';
-import fs from 'fs';
 import cheerio from 'cheerio';
-import admin from 'firebase-admin';
-import { chunk } from 'lodash';
+import Bluebird from 'bluebird';
 import { Storage } from '@google-cloud/storage';
 
 const storage = new Storage();
-
-admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
-});
-
-const db = admin.firestore();
 try {
   (async () => {
     const browser = await puppeteer.launch({
@@ -24,12 +16,7 @@ try {
         waitUntil: 'networkidle0',
       }
     );
-    await page.screenshot({
-      path: 'page.jpg',
-      fullPage: true,
-    });
     const content = await page.content();
-    fs.writeFileSync('content.html', content);
     const $ = cheerio.load(await page.content());
     const eventIds = $('a')
       .map((_, elem) => {
@@ -41,15 +28,22 @@ try {
       })
       .toArray()
       .filter((e) => e !== null);
-    await Promise.all(
-      eventIds.slice(1, 3).map(async (eventId) => {
+    await Bluebird.map(
+      eventIds,
+      async (eventId) => {
         const eventPage = await browser.newPage();
         await eventPage.setRequestInterception(true);
+
         eventPage.on('request', (req) => req.continue());
         eventPage.on('response', async (res) => {
           if (res.url().endsWith('/services/content/get')) {
             const json = await res.json();
-            if (json.data && json.data.idfoevent && json.data.markets) {
+            if (
+              json.data &&
+              json.data.idfoevent &&
+              json.data.markets &&
+              json.data.markets.length > 0
+            ) {
               const { markets } = json.data;
               const selections = markets
                 .map((market: any) =>
@@ -69,23 +63,22 @@ try {
                   }))
                 )
                 .flat();
-              const key = `${markets[0].participantname_home}_${markets[0].participantname_away}`;
-              fs.writeFileSync(`${key}.json`, JSON.stringify(selections));
-              await storage
-                .bucket('nt-odds')
-                .upload(`${key}.json`, { gzip: true });
-
-              // const chunks = chunk(selections, 200);
-              // for (const c of chunks) {
-              //   const batch = db.batch();
-              //   c.forEach((selection: any) => {
-              //     const ref = db
-              //       .collection('selections')
-              //       .doc(selection.selectionId);
-              //     batch.set(ref, selection);
-              //   });
-              //   await batch.commit();
-              // }
+              const key = `${selections[0].homeTeam}_${selections[0].awayTeam}`;
+              const file = storage.bucket('nt-odds').file(`${key}.json`);
+              try {
+                await file.save(JSON.stringify(selections), {
+                  gzip: true,
+                  resumable: false,
+                });
+                console.log(`uploaded ${key}`);
+                console.log(selections[0]);
+              } catch (ex) {
+                console.log(`failed for ${key}`, ex.message);
+                console.log(JSON.stringify(ex.response, null, 2));
+                setTimeout(() => {
+                  process.exit(1);
+                }, 100);
+              }
             }
           }
         });
@@ -95,36 +88,12 @@ try {
             waitUntil: 'networkidle2',
           }
         );
-        await eventPage.screenshot({ fullPage: true, path: `${eventId}.png` });
-        const $ = cheerio.load(await eventPage.content());
-        const title = $('h1').text();
-        console.log(title);
-        const teams = title.split('-').map((t) => t.trim());
-        console.log(teams);
-        const events = $('.event')
-          .map((i, elem) => {
-            const runners = $(elem)
-              .find('[tabindex="-1"]')
-              .map((i, elem) => {
-                const spans = $(elem)
-                  .find('span')
-                  .map((i, elem) => $(elem).text());
-                const [name, odds] = spans;
-                return [name, +odds];
-              })
-              .toArray();
-            return {
-              marketType: $(elem).find('p').first().text(),
-              runners,
-            };
-          })
-          .toArray();
-        console.log(events.length);
-        await eventPage.close();
-      })
+        // await eventPage.close();
+      },
+      { concurrency: 3 }
     );
-    await browser.close();
+    // await browser.close();
   })();
 } catch (ex) {
-  console.error(ex);
+  console.error(ex.message);
 }

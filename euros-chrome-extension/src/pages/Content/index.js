@@ -55,5 +55,7 @@ const askForNTOdds = async () => {
 
 const host = window.location.host;
 if (/betfair/gi.test(host)) {
-  askForNTOdds();
+  setInterval(() => {
+    askForNTOdds();
+  }, 3000);
 }
