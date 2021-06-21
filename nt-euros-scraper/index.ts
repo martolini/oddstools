@@ -97,7 +97,8 @@ async function fetchOdds() {
               scrapedAtMillis: Date.now(),
             }))
           )
-          .flat();
+          .flat()
+          .filter((sel) => !!sel.price);
         if (!selections.length) {
           return false;
         }
@@ -110,7 +111,7 @@ async function fetchOdds() {
             const oldSelection = oldSelections.find(
               (sel: any) => sel.selectionId === c.selectionId
             );
-            if (oldSelection && oldSelection.price !== c.price) {
+            if (oldSelection && c.price && oldSelection.price !== c.price) {
               return [...p, c];
             }
             return p;
