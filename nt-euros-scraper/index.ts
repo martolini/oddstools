@@ -81,7 +81,7 @@ async function fetchOdds() {
             },
           }
         );
-        const { markets } = res.data.data;
+        const { markets = [] } = res.data.data;
         const selections = markets
           .map((market: any) =>
             market.selections.map((sel: any) => ({

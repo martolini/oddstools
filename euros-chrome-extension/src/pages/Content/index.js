@@ -170,6 +170,12 @@ const askForNTOdds = async () => {
     }
     await populateBetfairWithOdds(state);
     channel.subscribe((data) => {
+      if (state.length) {
+        const sampleEvent = state[0];
+        data.data = data.data.filter(
+          (sel) => sel.eventId === sampleEvent.eventId
+        );
+      }
       switch (data.name) {
         case 'odds-created':
           state = [...state, data.data];
@@ -205,7 +211,7 @@ const askForNTOdds = async () => {
           )
         );
       }
-    }, 10000);
+    }, 5000);
     ably.connection.on('connected', () => {
       console.log(`Connected to socket`);
     });
