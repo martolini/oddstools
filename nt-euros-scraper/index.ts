@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import cheerio from 'cheerio';
 import Bluebird from 'bluebird';
 import { Storage } from '@google-cloud/storage';
+import axios from 'axios';
 
 const storage = new Storage();
 try {
@@ -13,10 +14,9 @@ try {
     await page.goto(
       'https://www.norsk-tipping.no/sport/oddsen/sportsbook/event-group/44849.1',
       {
-        waitUntil: 'networkidle0',
+        waitUntil: 'networkidle2',
       }
     );
-    const content = await page.content();
     const $ = cheerio.load(await page.content());
     const eventIds = $('a')
       .map((_, elem) => {
@@ -28,65 +28,68 @@ try {
       })
       .toArray()
       .filter((e) => e !== null);
-    await Bluebird.map(
+    const results = await Bluebird.map(
       eventIds,
       async (eventId) => {
-        const eventPage = await browser.newPage();
-        await eventPage.setRequestInterception(true);
-
-        eventPage.on('request', (req) => req.continue());
-        eventPage.on('response', async (res) => {
-          if (res.url().endsWith('/services/content/get')) {
-            const json = await res.json();
-            if (
-              json.data &&
-              json.data.idfoevent &&
-              json.data.markets &&
-              json.data.markets.length > 0
-            ) {
-              const { markets } = json.data;
-              const selections = markets
-                .map((market: any) =>
-                  market.selections.map((sel: any) => ({
-                    eventId: market.idfoevent,
-                    selectionId: sel.idfoselection,
-                    marketType: market.name,
-                    marketTypeId: market.idfomarkettype,
-                    homeTeam: market.participantname_home,
-                    awayTeam: market.participantname_away,
-                    startTime: new Date(market.tsstart).getTime(),
-                    outcomeName: sel.name,
-                    price: sel.currentpriceup / sel.currentpricedown + 1,
-                    scrapedAtMillis: Date.now(),
-                  }))
-                )
-                .flat();
-              const key = `${selections[0].homeTeam}_${selections[0].awayTeam}`;
-              const file = storage.bucket('nt-odds').file(`${key}.json`);
-              try {
-                await file.save(JSON.stringify(selections), {
-                  gzip: true,
-                  resumable: false,
-                });
-                console.log(`uploaded ${key}`);
-                console.log(selections[0]);
-              } catch (ex) {
-                console.log(`failed for ${key}`, ex.message);
-                console.log(JSON.stringify(ex.response, null, 2));
-                setTimeout(() => {
-                  process.exit(1);
-                }, 100);
-              }
+        try {
+          const res = await axios.post(
+            'https://www.norsk-tipping.no/sport/oddsen/sportsbook/services/content/get',
+            {
+              contentId: { type: 'event', id: eventId },
+              clientContext: { language: 'NO', ipAddress: '0.0.0.0' },
+            },
+            {
+              headers: {
+                ['sec-ch-ua']:
+                  '" Not;A Brand";v="99", "Google Chrome";v="91", "Chromium";v="91"',
+                ['sec-ch-ua-mobile']: '?0',
+                'User-Agent':
+                  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+                Origin: 'https://www.norsk-tipping.no',
+                ['Sec-Fetch-Site']: 'same-origin',
+                ['Sec-Fetch-Mode']: 'cors',
+                ['Sec-Fetch-Dest']: 'empty',
+                Referer: `https://www.norsk-tipping.no/sport/oddsen/sportsbook/event/${eventId}`,
+                ['Accept-Language']: 'en-US,en;q=0.9,nb-NO;q=0.8,nb;q=0.7',
+              },
             }
+          );
+          const { markets } = res.data.data;
+          const selections = markets
+            .map((market: any) =>
+              market.selections.map((sel: any) => ({
+                eventId: market.idfoevent,
+                selectionId: sel.idfoselection,
+                marketType: market.name,
+                marketTypeId: market.idfomarkettype,
+                homeTeam: market.participantname_home,
+                awayTeam: market.participantname_away,
+                startTime: new Date(market.tsstart).getTime(),
+                outcomeName: sel.name,
+                price: sel.currentpriceup / sel.currentpricedown + 1,
+                scrapedAtMillis: Date.now(),
+              }))
+            )
+            .flat();
+          const key = `${selections[0].homeTeam}_${selections[0].awayTeam}`;
+          const file = storage.bucket('nt-odds').file(`${key}.json`);
+          try {
+            await file.save(JSON.stringify(selections), {
+              gzip: true,
+              resumable: false,
+            });
+            console.log(`uploaded ${key}`);
+          } catch (ex) {
+            console.log(`failed for ${key}`, ex.message);
+            console.log(JSON.stringify(ex.response, null, 2));
+            setTimeout(() => {
+              process.exit(1);
+            }, 100);
           }
-        });
-        await eventPage.goto(
-          `https://www.norsk-tipping.no/sport/oddsen/sportsbook/event/${eventId}`,
-          {
-            waitUntil: 'networkidle2',
-          }
-        );
-        await eventPage.close();
+          return res.data.data;
+        } catch (ex) {
+          console.error(ex);
+        }
       },
       { concurrency: 3 }
     );
