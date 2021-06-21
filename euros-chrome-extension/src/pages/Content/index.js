@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import Ably from 'ably';
 
 const mappers = [
   {
@@ -57,11 +58,11 @@ async function waitForSelector(selectorString) {
   if ($(selectorString).length) {
     return $(selectorString);
   }
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await new Promise((resolve) => setTimeout(resolve, 250));
   return waitForSelector(selectorString);
 }
 
-const populateBetfairWithOdds = async (data, teams) => {
+const populateBetfairWithOdds = async (data) => {
   const getHUBMarkets = (selections, i) => {
     switch (i) {
       case 0:
@@ -140,15 +141,48 @@ const populateBetfairWithOdds = async (data, teams) => {
 const askForNTOdds = async () => {
   const title = (await waitForSelector('span.title > span')).first().text();
   const teams = title.split('–').map((t) => t.trim());
-  chrome.runtime.sendMessage({ teams }, (response) => {
-    populateBetfairWithOdds(response, teams);
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ teams }, (response) => {
+      resolve(response);
+    });
   });
 };
 
-const host = window.location.host;
-if (/betfair/gi.test(host)) {
-  askForNTOdds();
-  setInterval(() => {
-    askForNTOdds();
-  }, 3000);
-}
+(async () => {
+  const host = window.location.host;
+  if (/betfair/gi.test(host)) {
+    const ably = new Ably.Realtime('D-YYEA.CZdDxA:2RsgpCy_H6pZ2WGs');
+    const channel = ably.channels.get('nt-odds');
+    let state = await askForNTOdds();
+    await populateBetfairWithOdds(state);
+    channel.subscribe((data) => {
+      switch (data.name) {
+        case 'odds-created':
+          state = [...state, data.data];
+          break;
+        case 'odds-changed':
+          state = data.data.reduce(
+            (p, c) => {
+              return state.map((s) =>
+                s.selectionId === c.selectionId ? c : s
+              );
+            },
+            [state]
+          );
+          break;
+        case 'odds-deleted':
+          state = state.filter(
+            (sel) => !data.data.find((s) => s.selectionId === sel.selectionId)
+          );
+          break;
+      }
+      populateBetfairWithOdds(state);
+    });
+    ably.connection.on('connected', () => {
+      console.log(`Connected to socket`);
+    });
+    ably.connection.on('failed', () => {
+      console.error(`Failed connecting`);
+    });
+  }
+})();
