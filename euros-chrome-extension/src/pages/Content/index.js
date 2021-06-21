@@ -40,6 +40,10 @@ const populateBetfairWithOdds = async (data, teams) => {
         name.text(`${name.text().split(' (NT:')[0]} (NT: ${ntOdds})`);
       });
   }
+  // Find minimarkets
+  // const miniMarkets = await waitForSelector('bf-mini-marketview');
+  // span.market-name-label is market type
+  // .runner-line and .runner-name
 };
 
 const askForNTOdds = async () => {
