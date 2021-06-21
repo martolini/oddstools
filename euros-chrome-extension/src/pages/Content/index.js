@@ -64,17 +64,22 @@ async function waitForSelector(selectorString) {
 
 const populateBetfairWithOdds = async (data) => {
   const getHUBMarkets = (selections, i) => {
-    switch (i) {
-      case 0:
-        return selections.find((item) => item.outcomeName === item.homeTeam)
-          .price;
-      case 1:
-        return selections.find((item) => item.outcomeName === item.awayTeam)
-          .price;
-      case 2:
-        return selections.find((item) => item.outcomeName === 'Uavgjort').price;
-      default:
-        return 0.0;
+    try {
+      switch (i) {
+        case 0:
+          return selections.find((item) => item.outcomeName === item.homeTeam)
+            .price;
+        case 1:
+          return selections.find((item) => item.outcomeName === item.awayTeam)
+            .price;
+        case 2:
+          return selections.find((item) => item.outcomeName === 'Uavgjort')
+            .price;
+        default:
+          return 0.0;
+      }
+    } catch (ex) {
+      return null;
     }
   };
   const mainMarket = await waitForSelector('bf-main-marketview');
@@ -86,7 +91,9 @@ const populateBetfairWithOdds = async (data) => {
       .each((i, runner) => {
         const name = $(runner).find('h3.runner-name').first();
         let ntOdds = getHUBMarkets(selections, i);
-        name.text(`${name.text().split(' (NT:')[0]} (NT: ${ntOdds})`);
+        if (ntOdds) {
+          name.text(`${name.text().split(' (NT:')[0]} (NT: ${ntOdds})`);
+        }
       });
   }
   // Find minimarkets
@@ -149,11 +156,18 @@ const askForNTOdds = async () => {
 };
 
 (async () => {
-  const host = window.location.host;
-  if (/betfair/gi.test(host)) {
-    const ably = new Ably.Realtime('D-YYEA.CZdDxA:2RsgpCy_H6pZ2WGs');
-    const channel = ably.channels.get('nt-odds');
+  const ably = new Ably.Realtime('D-YYEA.CZdDxA:2RsgpCy_H6pZ2WGs');
+  const channel = ably.channels.get('nt-odds');
+  const regexp = new RegExp(
+    'https://www.betfair.com/exchange/plus/no/fotball/uefa-em-2020/*',
+    'i'
+  );
+  if (regexp.test(window.location.href)) {
     let state = await askForNTOdds();
+    if (state.length) {
+    } else {
+      console.log(`NO INITIAL STATE...`);
+    }
     await populateBetfairWithOdds(state);
     channel.subscribe((data) => {
       switch (data.name) {
@@ -161,13 +175,9 @@ const askForNTOdds = async () => {
           state = [...state, data.data];
           break;
         case 'odds-changed':
-          state = data.data.reduce(
-            (p, c) => {
-              return state.map((s) =>
-                s.selectionId === c.selectionId ? c : s
-              );
-            },
-            [state]
+          state = state.map(
+            (sel) =>
+              data.data.find((s) => s.selectionId === sel.selectionId) || sel
           );
           break;
         case 'odds-deleted':
@@ -176,8 +186,26 @@ const askForNTOdds = async () => {
           );
           break;
       }
-      populateBetfairWithOdds(state);
     });
+    let currentTitle = $('span.title > span').first().text();
+    setInterval(async () => {
+      const title = $('span.title > span').first().text();
+      if (!title) {
+        return;
+      }
+      if (currentTitle !== title) {
+        currentTitle = title;
+        state = await askForNTOdds();
+      }
+      const teams = title.split('–').map((t) => t.trim());
+      if (teams[0] && teams[1]) {
+        populateBetfairWithOdds(
+          state.filter(
+            (sel) => sel.homeTeam === teams[0] && sel.awayTeam === teams[1]
+          )
+        );
+      }
+    }, 10000);
     ably.connection.on('connected', () => {
       console.log(`Connected to socket`);
     });
