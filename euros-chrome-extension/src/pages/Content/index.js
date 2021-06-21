@@ -10,16 +10,13 @@ async function waitForSelector(selectorString) {
 
 const populateBetfairWithOdds = async (data, teams) => {
   const mainMarket = await waitForSelector('bf-main-marketview');
-  const marketType = $(mainMarket)
-    .find('h2[class="market-type"]')
-    .first()
-    .text();
+  const marketType = $(mainMarket).find('h2.market-type').first().text();
   if (marketType === 'Kampodds') {
     const selections = data.filter((item) => item.marketType === 'HUB');
     $(mainMarket)
-      .find('tr[class="runner-line"]')
+      .find('tr.runner-line')
       .each((i, runner) => {
-        const name = $(runner).find('h3[class="runner-name"]').first();
+        const name = $(runner).find('h3.runner-name').first();
         let ntOdds;
         switch (i) {
           case 0:
