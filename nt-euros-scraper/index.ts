@@ -54,9 +54,7 @@ try {
                     marketTypeId: market.idfomarkettype,
                     homeTeam: market.participantname_home,
                     awayTeam: market.participantname_away,
-                    startTime: admin.firestore.Timestamp.fromDate(
-                      new Date(market.tsstart)
-                    ),
+                    startTime: new Date(market.tsstart).getTime(),
                     outcomeName: sel.name,
                     price: sel.currentpriceup / sel.currentpricedown + 1,
                     scrapedAtMillis: Date.now(),
@@ -88,11 +86,11 @@ try {
             waitUntil: 'networkidle2',
           }
         );
-        // await eventPage.close();
+        await eventPage.close();
       },
       { concurrency: 3 }
     );
-    // await browser.close();
+    await browser.close();
   })();
 } catch (ex) {
   console.error(ex.message);
