@@ -16,34 +16,42 @@ const mappers = [
       },
     ],
   },
-  ...['0.5', '1.5', '2.5', '3.5', '4.5', '5.5'].map((e) => ({
-    ntline: `Totalt antall mål - over/under ${e}`,
-    betfairline: `Over/under ${e} mål`,
-    outcomes: [
-      {
-        nt: `Under ${e}`,
-        betfair: `Under ${e} Goals`,
-      },
-      {
-        nt: `Over ${e}`,
-        betfair: `Over ${e} Goals`,
-      },
-    ],
-  })),
-  ...['0.5', '1.5', '2.5', '3.5', '4.5', '5.5'].map((e) => ({
-    ntline: `1. omgang - totalt antall mål - over/under ${e}`,
-    betfairline: `First Half Goals ${e}`,
-    outcomes: [
-      {
-        nt: `Under ${e}`,
-        betfair: `Under ${e} Goals`,
-      },
-      {
-        nt: `Over ${e}`,
-        betfair: `Over ${e} Goals`,
-      },
-    ],
-  })),
+  {
+    ntline: 'Uavgjort tilbakebetales',
+    betfairline: 'H/B – ingen spill på uavgjort',
+  },
+  ...['0.5', '1.5', '2.5', '3.5', '4.5', '5.5', '6.5', '7.5', '8.5'].map(
+    (e) => ({
+      ntline: `Totalt antall mål - over/under ${e}`,
+      betfairline: `Over/under ${e} mål`,
+      outcomes: [
+        {
+          nt: `Under ${e}`,
+          betfair: `Under ${e} Goals`,
+        },
+        {
+          nt: `Over ${e}`,
+          betfair: `Over ${e} Goals`,
+        },
+      ],
+    })
+  ),
+  ...['0.5', '1.5', '2.5', '3.5', '4.5', '5.5', '6.5', '7.5', '8.5'].map(
+    (e) => ({
+      ntline: `1. omgang - totalt antall mål - over/under ${e}`,
+      betfairline: `First Half Goals ${e}`,
+      outcomes: [
+        {
+          nt: `Under ${e}`,
+          betfair: `Under ${e} Goals`,
+        },
+        {
+          nt: `Over ${e}`,
+          betfair: `Over ${e} Goals`,
+        },
+      ],
+    })
+  ),
   {
     ntline: 'Korrekt resultat',
     betfairline: 'Riktig resultat',
@@ -51,6 +59,14 @@ const mappers = [
   {
     ntline: 'Pauseresultat',
     betfairline: 'Pause',
+  },
+  {
+    ntline: 'Scorer mål',
+    betfairline: 'To Score',
+  },
+  {
+    ntline: '1. målscorer',
+    betfairline: 'Første målscorer',
   },
 ];
 
@@ -99,6 +115,7 @@ const populateBetfairWithOdds = async (data) => {
   // Find minimarkets
   const miniMarkets = await waitForSelector('bf-mini-marketview');
   const $miniMarketLines = $(miniMarkets);
+
   $miniMarketLines.each((i, line) => {
     const lineObj = $(line);
     const title = lineObj.find('span.market-name-label');
@@ -112,34 +129,63 @@ const populateBetfairWithOdds = async (data) => {
         (selections.find((item) => item.outcomeName === tester) || {}).price;
       lineObj.find('tr.runner-line').each((nthRLine, rline) => {
         const name = $(rline).find('h3.runner-name').first();
+        const betfairPrice = $(rline)
+          .find('span.bet-button-price')
+          .first()
+          .text()
+          .trim();
         const nameText = name.text().trim();
         let price;
-        const currentOutcome = (foundMapper.outcomes || []).find(
-          (el) => el.betfair === nameText
-        );
-        if (currentOutcome) {
-          price = findSelection(currentOutcome.nt);
-        } else if (foundMapper.betfairline === 'Riktig resultat') {
-          const [hg, bg] = nameText.split(' - ');
-          if (hg === bg) {
-            price = findSelection(`Uavgjort ${hg}-${bg}`);
-          } else if (parseInt(bg) < parseInt(hg)) {
-            price = (
-              selections.find(
-                (item) => item.outcomeName === `${item.homeTeam} ${hg}-${bg}`
-              ) || {}
+        try {
+          const currentOutcome = (foundMapper.outcomes || []).find(
+            (el) => el.betfair === nameText
+          );
+          if (currentOutcome) {
+            price = findSelection(currentOutcome.nt);
+          } else if (foundMapper.betfairline === 'Riktig resultat') {
+            const [hg, bg] = nameText.split(' - ');
+            if (hg === bg) {
+              price = findSelection(`Uavgjort ${hg}-${bg}`);
+            } else if (parseInt(bg) < parseInt(hg)) {
+              price = (
+                selections.find(
+                  (item) => item.outcomeName === `${item.homeTeam} ${hg}-${bg}`
+                ) || {}
+              ).price;
+            } else {
+              price = (
+                selections.find(
+                  (item) => item.outcomeName === `${item.awayTeam} ${bg}-${hg}`
+                ) || {}
+              ).price;
+            }
+          } else if (foundMapper.betfairline === 'Pause') {
+            price = getHUBMarkets(selections, nthRLine);
+          } else if (
+            foundMapper.betfairline === 'H/B – ingen spill på uavgjort'
+          ) {
+            price = getHUBMarkets(selections, nthRLine);
+          } else if (
+            ['To Score', 'Første målscorer'].includes(foundMapper.betfairline)
+          ) {
+            price = selections.find(
+              (item) =>
+                item.outcomeName.toLowerCase() === nameText.toLowerCase()
             ).price;
-          } else {
-            price = (
-              selections.find(
-                (item) => item.outcomeName === `${item.awayTeam} ${bg}-${hg}`
-              ) || {}
-            ).price;
+            console.log(selections, nameText);
           }
-        } else if (foundMapper.betfairline === 'Pause') {
-          price = getHUBMarkets(selections, nthRLine);
-        }
-        if (price) name.text(`${name.text().split(' (NT:')[0]} (NT: ${price})`);
+          if (price) {
+            name.text(
+              `${name.text().split(' (NT:')[0]} (NT: ${price} (${(
+                (price / betfairPrice) *
+                100
+              ).toFixed(1)}%))`
+            );
+            if (parseInt(price) > parseInt(betfairPrice))
+              name.css({ color: 'green' });
+            else name.css({ color: 'darkred' });
+          }
+        } catch (err) {}
       });
     }
   });
