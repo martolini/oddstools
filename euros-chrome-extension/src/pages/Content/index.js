@@ -174,16 +174,14 @@ const populateBetfairWithOdds = async (data) => {
             ).price;
             console.log(selections, nameText);
           }
-          if (price) {
+          if (price > 0 && betfairPrice > 0) {
+            const diff = (price / betfairPrice) * 100 - 100;
             name.text(
-              `${name.text().split(' (NT:')[0]} (NT: ${price} (${(
-                (price / betfairPrice) *
-                100
-              ).toFixed(1)}%))`
+              `${name.text().split(' (NT:')[0]} (NT: ${price} [${diff.toFixed(
+                1
+              )}%])`
             );
-            if (parseInt(price) > parseInt(betfairPrice))
-              name.css({ color: 'green' });
-            else name.css({ color: 'darkred' });
+            if (diff >= -1) name.css({ color: 'green' });
           }
         } catch (err) {}
       });
