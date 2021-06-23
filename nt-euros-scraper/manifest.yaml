@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nt-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nt-scraper
+  template:
+    metadata:
+      labels:
+        app: nt-scraper
+    spec:
+      volumes:
+        - name: google-cloud-key
+          secret:
+            secretName: nt-scraper-credentials
+      containers:
+        - name: nt-scraper
+          # Replace $GCLOUD_PROJECT with your project ID
+          image: eu.gcr.io/odds-317418/nt-scraper
+          volumeMounts:
+            - name: google-cloud-key
+              mountPath: /var/secrets/google
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/key.json
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 500m
+            limits:
+              memory: 256Mi
+              cpu: 500m

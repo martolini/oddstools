@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "outDir": "build",
+    "noImplicitAny": false
+  },
+  "extends": "@tsconfig/recommended/tsconfig.json"
+}

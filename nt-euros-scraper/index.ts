@@ -160,7 +160,8 @@ async function fetchOdds() {
   console.log(JSON.stringify(updates, null, 2));
 }
 
-const argv = yargs(hideBin(process.argv))
+yargs(hideBin(process.argv))
+  .demandCommand(1)
   .command(
     'fetch-events',
     'Fetch event ids for euros 2020',
@@ -173,9 +174,27 @@ const argv = yargs(hideBin(process.argv))
   .command(
     'fetch-odds',
     'Fetch odds for the available event ids',
-    () => {},
+    {
+      forever: {
+        alias: 'f',
+        default: false,
+        type: 'boolean',
+      },
+    },
     async (argv) => {
-      await fetchOdds();
-      process.exit(0);
+      if (argv.forever) {
+        const LOOP_TIME = 5;
+        while (true) {
+          let timeNow = Date.now();
+          await fetchOdds();
+          const timeSpent = Date.now() - timeNow;
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.max(LOOP_TIME * 1000 - timeSpent, 0))
+          );
+        }
+      } else {
+        await fetchOdds();
+        process.exit(0);
+      }
     }
   ).argv;
