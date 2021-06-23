@@ -106,9 +106,25 @@ const populateBetfairWithOdds = async (data) => {
       .find('tr.runner-line')
       .each((i, runner) => {
         const name = $(runner).find('h3.runner-name').first();
-        let ntOdds = getHUBMarkets(selections, i);
-        if (ntOdds) {
-          name.text(`${name.text().split(' (NT:')[0]} (NT: ${ntOdds})`);
+        const betfairPrice = $(runner)
+          .find('span.bet-button-price')
+          .first()
+          .text()
+          .trim();
+        let price = getHUBMarkets(selections, i);
+        if (price > 0 && betfairPrice > 0) {
+          const diff = (price / betfairPrice) * 100 - 100;
+          name.text(
+            `${name.text().split(' (NT:')[0]} (NT: ${price} [${diff.toFixed(
+              1
+            )}%])`
+          );
+          name.text(
+            `${name.text().split(' (NT:')[0]} (NT: ${price} [${diff.toFixed(
+              1
+            )}%])`
+          );
+          if (diff >= -1) name.css({ color: 'green' });
         }
       });
   }
