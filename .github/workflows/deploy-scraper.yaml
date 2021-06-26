@@ -58,7 +58,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: .
+          context: nt-euros-scraper
           push: true
           tags: ${{ steps.prep.outputs.tags }}
           build-args: GITHUB_SHA="$GITHUB_SHA",GITHUB_REF="$GITHUB_REF"
