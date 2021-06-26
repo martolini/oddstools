@@ -7,7 +7,7 @@ on:
     branches:
       - master
     paths:
-      - 'nt-euros-scraper/*'
+      - 'nt-euros-scraper/**'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
