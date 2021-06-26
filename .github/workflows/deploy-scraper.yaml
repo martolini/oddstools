@@ -57,6 +57,7 @@ jobs:
           context: .
           push: true
           tags: '$PROJECT_ID/$IMAGE:$GITHUB_SHA'
+          build-args: GITHUB_SHA="$GITHUB_SHA",GITHUB_REF="$GITHUB_REF"
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
 
