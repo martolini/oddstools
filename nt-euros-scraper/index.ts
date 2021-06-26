@@ -10,7 +10,12 @@ import Ably from 'ably';
 const storage = new Storage();
 const BUCKET_NAME = 'nt-odds';
 
-const ably = new Ably.Realtime('D-YYEA.CZdDxA:2RsgpCy_H6pZ2WGs');
+const ABLY_KEY = process.env.ABLY_KEY as string;
+if (!ABLY_KEY) {
+  throw new Error(`No Ably key set. Set $ABLY_KEY and try again`);
+}
+
+const ably = new Ably.Realtime(ABLY_KEY);
 const channel = ably.channels.get('nt-odds');
 
 async function fetchEventIds() {
