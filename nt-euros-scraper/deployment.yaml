@@ -19,13 +19,18 @@ spec:
       containers:
         - name: nt-scraper
           # Replace $GCLOUD_PROJECT with your project ID
-          image: eu.gcr.io/odds-317418/nt-scraper
+          image: eu.gcr.io/PROJECT_ID/IMAGE:TAG
           volumeMounts:
             - name: google-cloud-key
               mountPath: /var/secrets/google
           env:
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /var/secrets/google/key.json
+            - name: ABLY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ably-scraper-key
+                  key: api-key
           resources:
             requests:
               memory: 256Mi
