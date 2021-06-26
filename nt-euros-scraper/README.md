@@ -17,6 +17,6 @@ yarn start # this will run it once
 
 `yarn start` will run it once
 
-```
-code blocks for commands
-```
+### Deploy
+
+This will get deployed by a github action on a push to master. It will only run if there were changes within this folder.
