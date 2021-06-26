@@ -107,7 +107,7 @@ const populateBetfairWithOdds = async (data) => {
       .each((i, runner) => {
         const name = $(runner).find('h3.runner-name').first();
         const betfairPrice = $(runner)
-          .find('span.bet-button-price')
+          .find('.back-selection-button span.bet-button-price')
           .first()
           .text()
           .trim();
@@ -141,7 +141,7 @@ const populateBetfairWithOdds = async (data) => {
       lineObj.find('tr.runner-line').each((nthRLine, rline) => {
         const name = $(rline).find('h3.runner-name').first();
         const betfairPrice = $(rline)
-          .find('span.bet-button-price')
+          .find('.back-selection-button span.bet-button-price')
           .first()
           .text()
           .trim();
