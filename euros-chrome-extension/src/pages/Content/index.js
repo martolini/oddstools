@@ -72,6 +72,10 @@ const mappers = [
     ntline: 'HUB',
     betfairline: 'Kampodds',
   },
+  {
+    ntline: 'Halvtid/Fulltid',
+    betfairline: 'Pause/Fulltid',
+  },
 ];
 
 async function waitForSelector(selectorString) {
@@ -83,18 +87,15 @@ async function waitForSelector(selectorString) {
 }
 
 const populateBetfairWithOdds = async (data) => {
-  const getHUBMarkets = (selections, i) => {
+  const getHUBMarkets = (selections, i, flip) => {
     try {
       switch (i) {
         case 0:
-          return selections.find((item) => item.outcomeName === item.homeTeam)
-            .price;
+          return selections[flip ? 2 : 0].price;
         case 1:
-          return selections.find((item) => item.outcomeName === item.awayTeam)
-            .price;
+          return selections[flip ? 0 : 2].price;
         case 2:
-          return selections.find((item) => item.outcomeName === 'Uavgjort')
-            .price;
+          return selections[1].price;
         default:
           return 0.0;
       }
@@ -108,13 +109,33 @@ const populateBetfairWithOdds = async (data) => {
   );
   const $miniMarketLines = $(miniMarkets);
 
+  let homeTeamEng, awayTeamEng;
+  try {
+    const teamHackElem = data.filter(
+      (elem) => elem.marketType === 'Halvtid/Fulltid'
+    )[2];
+    [awayTeamEng, homeTeamEng] = teamHackElem.outcomeName.split(' - ');
+    const newLines = ['-4', '-3', '-2', '-1', '0', '+1', '+2', '+3', '+4'].map(
+      (i) => ({
+        ntline: `Handikap 3-veis ${i}`,
+        betfairline:
+          parseInt(i) > 0
+            ? `${homeTeamEng} ${i}`
+            : `${awayTeamEng} +${i.charAt(1)}`,
+      })
+    );
+    mappers.push(...newLines);
+  } catch (err) {
+    console.error(err);
+  }
+
   $miniMarketLines.each((i, line) => {
     const lineObj = $(line);
     let title = lineObj.find('span.market-name-label, h2.market-type');
     const titleText = title.first().text().trim();
     const foundMapper = mappers.find((m) => m.betfairline === titleText);
     if (foundMapper) {
-      const selections = data.filter(
+      let selections = data.filter(
         (item) => item.marketType === foundMapper.ntline
       );
       const findSelection = (tester) =>
@@ -151,14 +172,34 @@ const populateBetfairWithOdds = async (data) => {
                 ) || {}
               ).price;
             }
-          } else if (foundMapper.betfairline === 'Pause') {
+          } else if (
+            foundMapper.betfairline === 'Pause' ||
+            foundMapper.betfairline === 'Kampodds'
+          ) {
             price = getHUBMarkets(selections, nthRLine);
-          } else if (foundMapper.betfairline === 'Kampodds') {
-            price = getHUBMarkets(selections, nthRLine);
+          } else if (foundMapper.ntline.indexOf('Handikap 3-veis') === 0) {
+            price = getHUBMarkets(
+              selections,
+              nthRLine,
+              foundMapper.betfairline.indexOf(awayTeamEng) === 0
+            );
           } else if (
             foundMapper.betfairline === 'H/B – ingen spill på uavgjort'
           ) {
             price = getHUBMarkets(selections, nthRLine);
+          } else if (foundMapper.betfairline === 'Pause/Fulltid') {
+            const map = {
+              0: 0,
+              1: 3,
+              2: 6,
+              3: 1,
+              4: 4,
+              5: 7,
+              6: 2,
+              7: 5,
+              8: 8,
+            };
+            price = selections[map[nthRLine]].price;
           } else if (
             ['To Score', 'Første målscorer'].includes(foundMapper.betfairline)
           ) {
@@ -177,7 +218,7 @@ const populateBetfairWithOdds = async (data) => {
             if (diff >= -1) name.css({ color: 'green' });
           }
         } catch (err) {
-          console.log(err);
+          console.error(err);
         }
       });
     }
