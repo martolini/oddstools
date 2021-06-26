@@ -107,7 +107,7 @@ const populateBetfairWithOdds = async (data) => {
       .each((i, runner) => {
         const name = $(runner).find('h3.runner-name').first();
         const betfairPrice = $(runner)
-          .find('span.bet-button-price')
+          .find('.back-selection-button span.bet-button-price')
           .first()
           .text()
           .trim();
@@ -141,7 +141,7 @@ const populateBetfairWithOdds = async (data) => {
       lineObj.find('tr.runner-line').each((nthRLine, rline) => {
         const name = $(rline).find('h3.runner-name').first();
         const betfairPrice = $(rline)
-          .find('span.bet-button-price')
+          .find('.back-selection-button span.bet-button-price')
           .first()
           .text()
           .trim();
@@ -211,7 +211,7 @@ const askForNTOdds = async () => {
 };
 
 (async () => {
-  const ably = new Ably.Realtime('D-YYEA.CZdDxA:2RsgpCy_H6pZ2WGs');
+  const ably = new Ably.Realtime('D-YYEA.2oCC3w:B_ZsAflF5oLdFqf2');
   const channel = ably.channels.get('nt-odds');
   const regexp = new RegExp(
     'https://www.betfair.com/exchange/plus/no/fotball/uefa-em-2020/*',
@@ -227,9 +227,11 @@ const askForNTOdds = async () => {
     channel.subscribe((data) => {
       if (state.length) {
         const sampleEvent = state[0];
-        data.data = data.data.filter(
-          (sel) => sel.eventId === sampleEvent.eventId
-        );
+        if (sampleEvent) {
+          data.data = data.data.filter(
+            (sel) => (sel || {}).eventId === sampleEvent.eventId
+          );
+        }
       }
       switch (data.name) {
         case 'odds-created':
@@ -245,6 +247,8 @@ const askForNTOdds = async () => {
           state = state.filter(
             (sel) => !data.data.find((s) => s.selectionId === sel.selectionId)
           );
+          break;
+        default:
           break;
       }
     });
