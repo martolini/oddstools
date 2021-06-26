@@ -162,17 +162,7 @@ const populateBetfairWithOdds = async (data) => {
           .first()
           .text()
           .trim();
-        try {
-          const betButtonTd = lineObj.find('td.bet-buttons').first();
 
-          if (betButtonTd.length && !betButtonTd.hasClass('nt-line')) {
-            // const toAdd = betButtonTd.clone();
-            // toAdd.addClass('nt-line');
-            // betButtonTd.insertBefore(toAdd);
-          }
-        } catch (err) {
-          console.error(err);
-        }
         const nameText = name.text().trim();
         let price;
         try {
@@ -246,6 +236,7 @@ const populateBetfairWithOdds = async (data) => {
               )} [${diff.toFixed(1)}%])`
             );
             if (diff >= -1) name.css({ color: 'green' });
+            else name.css({ color: 'inherit' });
           }
         } catch (err) {
           console.error(err);
