@@ -10,14 +10,6 @@ import Ably from 'ably';
 const storage = new Storage();
 const BUCKET_NAME = 'nt-odds';
 
-const ABLY_KEY = process.env.ABLY_KEY as string;
-if (!ABLY_KEY) {
-  throw new Error(`No Ably key set. Set $ABLY_KEY and try again`);
-}
-
-const ably = new Ably.Realtime(ABLY_KEY);
-const channel = ably.channels.get('nt-odds');
-
 async function fetchEventIds() {
   const browser = await puppeteer.launch({
     headless: false,
@@ -49,7 +41,7 @@ async function fetchEventIds() {
   });
 }
 
-async function fetchOdds() {
+async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
   const [eventResult] = await storage
     .bucket(BUCKET_NAME)
     .file('eventids.json')
@@ -151,7 +143,6 @@ async function fetchOdds() {
             gzip: true,
             resumable: false,
           });
-          console.log(`uploaded ${key}`);
         } catch (ex) {
           console.log(`failed for ${key}`, ex.message);
         }
@@ -171,7 +162,7 @@ yargs(hideBin(process.argv))
     'fetch-events',
     'Fetch event ids for euros 2020',
     () => {},
-    async (argv) => {
+    async () => {
       await fetchEventIds();
       process.exit(0);
     }
@@ -185,20 +176,33 @@ yargs(hideBin(process.argv))
         default: false,
         type: 'boolean',
       },
+      ablyKey: {
+        default: process.env.ABLY_KEY,
+        demand: true,
+        type: 'string',
+      },
     },
     async (argv) => {
+      if (!argv.ablyKey) {
+        console.error(
+          `You need to have a key to ably in order to stream the odds.`
+        );
+        process.exit(1);
+      }
+      const ably = new Ably.Realtime(argv.ablyKey);
+      const channel = ably.channels.get('nt-odds');
       if (argv.forever) {
         const LOOP_TIME = 5;
         while (true) {
           let timeNow = Date.now();
-          await fetchOdds();
+          await fetchOdds(channel);
           const timeSpent = Date.now() - timeNow;
           await new Promise((resolve) =>
             setTimeout(resolve, Math.max(LOOP_TIME * 1000 - timeSpent, 0))
           );
         }
       } else {
-        await fetchOdds();
+        await fetchOdds(channel);
         process.exit(0);
       }
     }
