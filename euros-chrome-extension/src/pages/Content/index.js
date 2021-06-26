@@ -76,6 +76,10 @@ const mappers = [
     ntline: 'Halvtid/Fulltid',
     betfairline: 'Pause/Fulltid',
   },
+  {
+    ntline: 'Hvilket lag vinner til slutt',
+    betfairline: 'Kvalifiserer seg',
+  },
 ];
 
 async function waitForSelector(selectorString) {
@@ -110,7 +114,10 @@ const populateBetfairWithOdds = async (data) => {
   const $miniMarketLines = $(miniMarkets);
 
   let homeTeamEng, awayTeamEng;
+  let homeTeam, awayTeam;
   try {
+    homeTeam = data[0].homeTeam;
+    awayTeam = data[0].awayTeam;
     const teamHackElem = data.filter(
       (elem) => elem.marketType === 'Halvtid/Fulltid'
     )[2];
@@ -124,7 +131,15 @@ const populateBetfairWithOdds = async (data) => {
             : `${awayTeamEng} +${i.charAt(1)}`,
       })
     );
-    mappers.push(...newLines);
+    const goalsHome = ['0.5', '1.5', '2.5', '3.5'].map((el) => ({
+      betfairline: `${homeTeam} over/under ${el} mål`,
+      ntline: `Totalt antall ${homeTeam} mål over/under ${el}`,
+    }));
+    const goalsAway = goalsHome.map((gh) => ({
+      betfairline: gh.betfairline.replace(homeTeam, awayTeam),
+      ntline: gh.ntline.replace(homeTeam, awayTeam),
+    }));
+    mappers.push(...newLines, ...goalsHome, ...goalsAway);
   } catch (err) {
     console.error(err);
   }
@@ -147,6 +162,17 @@ const populateBetfairWithOdds = async (data) => {
           .first()
           .text()
           .trim();
+        try {
+          const betButtonTd = lineObj.find('td.bet-buttons').first();
+
+          if (betButtonTd.length && !betButtonTd.hasClass('nt-line')) {
+            // const toAdd = betButtonTd.clone();
+            // toAdd.addClass('nt-line');
+            // betButtonTd.insertBefore(toAdd);
+          }
+        } catch (err) {
+          console.error(err);
+        }
         const nameText = name.text().trim();
         let price;
         try {
@@ -200,6 +226,10 @@ const populateBetfairWithOdds = async (data) => {
               8: 8,
             };
             price = selections[map[nthRLine]].price;
+          } else if (/ over\/under \d\.\d mål/.test(foundMapper.betfairline)) {
+            price = (selections[nthRLine ? 0 : 1] || {}).price;
+          } else if (foundMapper.betfairline === 'Kvalifiserer seg') {
+            price = selections[nthRLine].price;
           } else if (
             ['To Score', 'Første målscorer'].includes(foundMapper.betfairline)
           ) {
@@ -236,7 +266,7 @@ const askForNTOdds = async () => {
 };
 
 (async () => {
-  const ably = new Ably.Realtime('D-YYEA.2oCC3w:B_ZsAflF5oLdFqf2');
+  const ably = new Ably.Realtime('D-YYEA.Vhqn1w:Dty77Y99oAPrFkc6');
   const channel = ably.channels.get('nt-odds');
   const regexp = new RegExp(
     'https://www.betfair.com/exchange/plus/no/fotball/uefa-em-2020/*',
