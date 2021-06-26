@@ -6,8 +6,8 @@ on:
   push:
     branches:
       - master
-    # paths:
-    #   - 'nt-euros-scraper/**'
+    paths:
+      - 'nt-euros-scraper/**'
 
 env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
