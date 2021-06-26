@@ -53,7 +53,7 @@ jobs:
       - name: Prepare
         id: prep
         run: |
-          TAGS="${PROJECT_ID}/${IMAGE}:${GITHUB_SHA}"
+          TAGS="eu.gcr.io/${PROJECT_ID}/${IMAGE}:${GITHUB_SHA}"
           echo ::set-output name=tags::${TAGS}
       - name: Build and push
         uses: docker/build-push-action@v2
