@@ -68,6 +68,10 @@ const mappers = [
     ntline: '1. målscorer',
     betfairline: 'Første målscorer',
   },
+  {
+    ntline: 'HUB',
+    betfairline: 'Kampodds',
+  },
 ];
 
 async function waitForSelector(selectorString) {
@@ -98,38 +102,15 @@ const populateBetfairWithOdds = async (data) => {
       return null;
     }
   };
-  const mainMarket = await waitForSelector('bf-main-marketview');
-  const marketType = $(mainMarket).find('h2.market-type').first().text();
-  if (marketType === 'Kampodds') {
-    const selections = data.filter((item) => item.marketType === 'HUB');
-    $(mainMarket)
-      .find('tr.runner-line')
-      .each((i, runner) => {
-        const name = $(runner).find('h3.runner-name').first();
-        const betfairPrice = $(runner)
-          .find('.back-selection-button span.bet-button-price')
-          .first()
-          .text()
-          .trim();
-        let price = getHUBMarkets(selections, i);
-        if (price > 0 && betfairPrice > 0) {
-          const diff = (price / betfairPrice) * 100 - 100;
-          name.text(
-            `${name.text().split(' (NT:')[0]} (NT: ${price.toFixed(
-              2
-            )} [${diff.toFixed(1)}%])`
-          );
-          if (diff >= -1) name.css({ color: 'green' });
-        }
-      });
-  }
   // Find minimarkets
-  const miniMarkets = await waitForSelector('bf-mini-marketview');
+  const miniMarkets = await waitForSelector(
+    'bf-mini-marketview, bf-main-marketview'
+  );
   const $miniMarketLines = $(miniMarkets);
 
   $miniMarketLines.each((i, line) => {
     const lineObj = $(line);
-    const title = lineObj.find('span.market-name-label');
+    let title = lineObj.find('span.market-name-label, h2.market-type');
     const titleText = title.first().text().trim();
     const foundMapper = mappers.find((m) => m.betfairline === titleText);
     if (foundMapper) {
@@ -172,6 +153,8 @@ const populateBetfairWithOdds = async (data) => {
             }
           } else if (foundMapper.betfairline === 'Pause') {
             price = getHUBMarkets(selections, nthRLine);
+          } else if (foundMapper.betfairline === 'Kampodds') {
+            price = getHUBMarkets(selections, nthRLine);
           } else if (
             foundMapper.betfairline === 'H/B – ingen spill på uavgjort'
           ) {
@@ -183,7 +166,6 @@ const populateBetfairWithOdds = async (data) => {
               (item) =>
                 item.outcomeName.toLowerCase() === nameText.toLowerCase()
             ).price;
-            console.log(selections, nameText);
           }
           if (price > 0 && betfairPrice > 0) {
             const diff = (price / betfairPrice) * 100 - 100;
@@ -194,7 +176,9 @@ const populateBetfairWithOdds = async (data) => {
             );
             if (diff >= -1) name.css({ color: 'green' });
           }
-        } catch (err) {}
+        } catch (err) {
+          console.log(err);
+        }
       });
     }
   });
