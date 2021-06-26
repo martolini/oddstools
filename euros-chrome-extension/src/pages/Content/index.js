@@ -115,14 +115,9 @@ const populateBetfairWithOdds = async (data) => {
         if (price > 0 && betfairPrice > 0) {
           const diff = (price / betfairPrice) * 100 - 100;
           name.text(
-            `${name.text().split(' (NT:')[0]} (NT: ${price} [${diff.toFixed(
-              1
-            )}%])`
-          );
-          name.text(
-            `${name.text().split(' (NT:')[0]} (NT: ${price} [${diff.toFixed(
-              1
-            )}%])`
+            `${name.text().split(' (NT:')[0]} (NT: ${price.toFixed(
+              2
+            )} [${diff.toFixed(1)}%])`
           );
           if (diff >= -1) name.css({ color: 'green' });
         }
@@ -193,9 +188,9 @@ const populateBetfairWithOdds = async (data) => {
           if (price > 0 && betfairPrice > 0) {
             const diff = (price / betfairPrice) * 100 - 100;
             name.text(
-              `${name.text().split(' (NT:')[0]} (NT: ${price} [${diff.toFixed(
-                1
-              )}%])`
+              `${name.text().split(' (NT:')[0]} (NT: ${price.toFixed(
+                2
+              )} [${diff.toFixed(1)}%])`
             );
             if (diff >= -1) name.css({ color: 'green' });
           }
