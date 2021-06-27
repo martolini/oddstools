@@ -6,6 +6,7 @@ import axios from 'axios';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import Ably from 'ably';
+import { reduce } from 'lodash';
 
 const storage = new Storage();
 const BUCKET_NAME = 'nt-odds';
@@ -153,7 +154,12 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
     },
     { concurrency: 3 }
   );
-  console.log(JSON.stringify(updates, null, 2));
+  const numberOfUpdates = reduce(
+    updates,
+    (result, value, key) => result + value,
+    0
+  );
+  if (numberOfUpdates > 0) console.log(JSON.stringify(updates, null, 2));
 }
 
 yargs(hideBin(process.argv))
