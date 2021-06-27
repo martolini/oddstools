@@ -1,5 +1,3 @@
-import puppeteer from 'puppeteer';
-import cheerio from 'cheerio';
 import Bluebird from 'bluebird';
 import { Storage } from '@google-cloud/storage';
 import axios from 'axios';
@@ -10,37 +8,6 @@ import { reduce } from 'lodash';
 
 const storage = new Storage();
 const BUCKET_NAME = 'nt-odds';
-
-async function fetchEventIds() {
-  const browser = await puppeteer.launch({
-    headless: false,
-  });
-  const page = await browser.newPage();
-  await page.goto(
-    'https://www.norsk-tipping.no/sport/oddsen/sportsbook/event-group/44849.1',
-    {
-      waitUntil: 'networkidle2',
-    }
-  );
-  const $ = cheerio.load(await page.content());
-  const eventIds = $('a')
-    .map((_, elem) => {
-      const dataId = $(elem).attr('data-id');
-      if (dataId && dataId.startsWith('navigation')) {
-        return dataId.split('_').slice(-1)[0];
-      }
-      return null;
-    })
-    .toArray()
-    .filter((e) => e !== null);
-  await page.close();
-  await browser.close();
-  const file = storage.bucket(BUCKET_NAME).file('eventids.json');
-  await file.save(JSON.stringify(eventIds), {
-    gzip: true,
-    resumable: true,
-  });
-}
 
 async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
   const [eventResult] = await storage
@@ -164,15 +131,6 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
 
 yargs(hideBin(process.argv))
   .demandCommand(1)
-  .command(
-    'fetch-events',
-    'Fetch event ids for euros 2020',
-    () => {},
-    async () => {
-      await fetchEventIds();
-      process.exit(0);
-    }
-  )
   .command(
     'fetch-odds',
     'Fetch odds for the available event ids',
