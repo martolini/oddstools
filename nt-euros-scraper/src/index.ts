@@ -1,45 +1,13 @@
-import puppeteer from 'puppeteer';
-import cheerio from 'cheerio';
 import Bluebird from 'bluebird';
 import { Storage } from '@google-cloud/storage';
 import axios from 'axios';
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import Ably from 'ably';
+import { reduce } from 'lodash';
 
 const storage = new Storage();
 const BUCKET_NAME = 'nt-odds';
-
-async function fetchEventIds() {
-  const browser = await puppeteer.launch({
-    headless: false,
-  });
-  const page = await browser.newPage();
-  await page.goto(
-    'https://www.norsk-tipping.no/sport/oddsen/sportsbook/event-group/44849.1',
-    {
-      waitUntil: 'networkidle2',
-    }
-  );
-  const $ = cheerio.load(await page.content());
-  const eventIds = $('a')
-    .map((_, elem) => {
-      const dataId = $(elem).attr('data-id');
-      if (dataId && dataId.startsWith('navigation')) {
-        return dataId.split('_').slice(-1)[0];
-      }
-      return null;
-    })
-    .toArray()
-    .filter((e) => e !== null);
-  await page.close();
-  await browser.close();
-  const file = storage.bucket(BUCKET_NAME).file('eventids.json');
-  await file.save(JSON.stringify(eventIds), {
-    gzip: true,
-    resumable: true,
-  });
-}
 
 async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
   const [eventResult] = await storage
@@ -118,11 +86,10 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
               selections.find((s) => s.selectionId === sel.selectionId)
             )
             .filter((sel) => !sel);
-          const newSelections = selections
-            .map((sel) =>
-              oldSelections.find((s) => s.selectionId === sel.selectionId)
-            )
-            .filter((s) => !s);
+          const newSelections = selections.filter(
+            (sel) =>
+              !oldSelections.find((s) => s.selectionId === sel.selectionId)
+          );
           if (newSelections.length > 0) {
             updates.new += newSelections.length;
             await channel.publish('odds-created', newSelections);
@@ -153,20 +120,16 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
     },
     { concurrency: 3 }
   );
-  console.log(JSON.stringify(updates, null, 2));
+  const numberOfUpdates = reduce(
+    updates,
+    (result, value, key) => result + value,
+    0
+  );
+  if (numberOfUpdates > 0) console.log(JSON.stringify(updates, null, 2));
 }
 
 yargs(hideBin(process.argv))
   .demandCommand(1)
-  .command(
-    'fetch-events',
-    'Fetch event ids for euros 2020',
-    () => {},
-    async () => {
-      await fetchEventIds();
-      process.exit(0);
-    }
-  )
   .command(
     'fetch-odds',
     'Fetch odds for the available event ids',

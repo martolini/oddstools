@@ -14,9 +14,7 @@
   "host_permissions": ["https://storage.cloud.google.com/nt-odds/*"],
   "content_scripts": [
     {
-      "matches": [
-        "https://www.betfair.com/exchange/plus/no/fotball/uefa-em-2020/*"
-      ],
+      "matches": ["https://www.betfair.com/exchange/plus/*"],
       "js": ["contentScript.bundle.js"],
       "css": ["content.styles.css"]
     }
