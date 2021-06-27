@@ -123,6 +123,10 @@ const mappers = [
     ntline: 'Hjørnespark HUB',
     betfairline: 'Spill på hjørnespark i kampen',
   },
+  {
+    ntline: '',
+    betfairline: 'Asiatisk handikap',
+  },
 ];
 
 async function waitForSelector(selectorString) {
@@ -152,7 +156,7 @@ const populateBetfairWithOdds = async (data) => {
   };
   // Find minimarkets
   const miniMarkets = await waitForSelector(
-    'bf-mini-marketview, bf-main-marketview'
+    'bf-mini-marketview, bf-main-marketview, bf-ah-marketview'
   );
   const $miniMarketLines = $(miniMarkets);
 
@@ -203,7 +207,7 @@ const populateBetfairWithOdds = async (data) => {
       );
       const findSelection = (tester) =>
         (selections.find((item) => item.outcomeName === tester) || {}).price;
-      lineObj.find('tr.runner-line').each((nthRLine, rline) => {
+      lineObj.find('tr.runner-line, li.runner-item').each((nthRLine, rline) => {
         const name = $(rline).find('h3.runner-name').first();
         const betfairPrice = $(rline)
           .find('.back-selection-button span.bet-button-price')
@@ -237,9 +241,12 @@ const populateBetfairWithOdds = async (data) => {
               ).price;
             }
           } else if (
-            foundMapper.betfairline === 'Pause' ||
-            foundMapper.betfairline === 'Kampodds' ||
-            foundMapper.betfairline === 'Spill på hjørnespark i kampen'
+            [
+              'Pause',
+              'Kampodds',
+              'Spill på hjørnespark i kampen',
+              'H/B – ingen spill på uavgjort',
+            ].includes(foundMapper.betfairline)
           ) {
             price = getHUBMarkets(selections, nthRLine);
           } else if (foundMapper.ntline.indexOf('Handikap 3-veis') === 0) {
@@ -248,10 +255,6 @@ const populateBetfairWithOdds = async (data) => {
               nthRLine,
               foundMapper.betfairline.indexOf(awayTeamEng) === 0
             );
-          } else if (
-            foundMapper.betfairline === 'H/B – ingen spill på uavgjort'
-          ) {
-            price = getHUBMarkets(selections, nthRLine);
           } else if (foundMapper.betfairline === 'Pause/Fulltid') {
             const map = {
               0: 0,
@@ -273,6 +276,20 @@ const populateBetfairWithOdds = async (data) => {
             price = (selections[nthRLine ? 0 : 1] || {}).price;
           } else if (foundMapper.betfairline === 'Kvalifiserer seg') {
             price = selections[nthRLine].price;
+          } else if (foundMapper.betfairline === 'Asiatisk handikap') {
+            const [, team, handicapLine] =
+              nameText.match(/^([^\d]+) (.*)$/) || [];
+            const selection = data.find(
+              (el) =>
+                el.marketType.indexOf('Handikap 2-veis') === 0 &&
+                el.outcomeName ===
+                  `${
+                    team === homeTeamEng ? el.homeTeam : el.awayTeam
+                  } ${handicapLine}`
+            );
+            if (selection) {
+              price = selection.price;
+            }
           } else if (
             ['To Score', 'Første målscorer'].includes(foundMapper.betfairline)
           ) {
@@ -329,7 +346,9 @@ const askForNTOdds = async () => {
     } else {
       console.log(`NO INITIAL STATE...`);
     }
-    await populateBetfairWithOdds(state);
+    try {
+      await populateBetfairWithOdds(state);
+    } catch (err) {}
     channel.subscribe((data) => {
       if (state.length) {
         const sampleEvent = state[0];
@@ -370,11 +389,13 @@ const askForNTOdds = async () => {
       }
       const teams = title.split('–').map((t) => t.trim());
       if (teams[0] && teams[1]) {
-        populateBetfairWithOdds(
-          state.filter(
-            (sel) => sel.homeTeam === teams[0] && sel.awayTeam === teams[1]
-          )
-        );
+        try {
+          populateBetfairWithOdds(
+            state.filter(
+              (sel) => sel.homeTeam === teams[0] && sel.awayTeam === teams[1]
+            )
+          );
+        } catch (err) {}
       }
     }, 5000);
     ably.connection.on('connected', () => {
