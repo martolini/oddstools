@@ -324,8 +324,10 @@ const populateBetfairWithOdds = async (data) => {
 };
 
 const askForNTOdds = async () => {
-  const title = (await waitForSelector('span.title > span')).first().text();
-  const teams = title.split('–').map((t) => t.trim());
+  const teams = window.location.pathname
+    .match(/.*\/(?:([^-]+)-([^-]+).+?)$/)
+    .slice(1, 3)
+    .map((team) => team.charAt(0).toUpperCase() + team.slice(1));
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ teams }, (response) => {
       resolve(response);
