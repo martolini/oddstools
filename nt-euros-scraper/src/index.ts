@@ -81,11 +81,9 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
             }
             return p;
           }, []);
-          const deletedSelections = oldSelections
-            .map((sel) =>
-              selections.find((s) => s.selectionId === sel.selectionId)
-            )
-            .filter((sel) => !sel);
+          const deletedSelections = oldSelections.filter(
+            (sel) => !selections.find((s) => s.selectionId === sel.selectionId)
+          );
           const newSelections = selections.filter(
             (sel) =>
               !oldSelections.find((s) => s.selectionId === sel.selectionId)
