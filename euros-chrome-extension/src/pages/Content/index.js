@@ -17,6 +17,20 @@ const mappers = [
     ],
   },
   {
+    ntline: 'Blir det rødt kort?',
+    betfairline: 'Utvisning?',
+    outcomes: [
+      {
+        nt: 'Nei',
+        betfair: 'No',
+      },
+      {
+        nt: 'Ja',
+        betfair: 'Yes',
+      },
+    ],
+  },
+  {
     ntline: 'Uavgjort tilbakebetales',
     betfairline: 'H/B – ingen spill på uavgjort',
   },
@@ -52,6 +66,12 @@ const mappers = [
       ],
     })
   ),
+  ...['0.5', '1.5', '2.5', '3.5', '4.5', '5.5', '6.5', '7.5', '8.5'].map(
+    (e) => ({
+      ntline: `Antall kort over/under ${e}`,
+      betfairline: `Cards Over/Under ${e}`,
+    })
+  ),
   {
     ntline: 'Korrekt resultat',
     betfairline: 'Riktig resultat',
@@ -79,6 +99,10 @@ const mappers = [
   {
     ntline: 'Hvilket lag vinner til slutt',
     betfairline: 'Kvalifiserer seg',
+  },
+  {
+    ntline: 'Spiller får kort',
+    betfairline: 'Shown a card?',
   },
 ];
 
@@ -216,7 +240,11 @@ const populateBetfairWithOdds = async (data) => {
               8: 8,
             };
             price = selections[map[nthRLine]].price;
-          } else if (/ over\/under \d\.\d mål/.test(foundMapper.betfairline)) {
+          } else if (
+            / over\/under \d\.\d mål|Cards Over\/Under \d\.\d/.test(
+              foundMapper.betfairline
+            )
+          ) {
             price = (selections[nthRLine ? 0 : 1] || {}).price;
           } else if (foundMapper.betfairline === 'Kvalifiserer seg') {
             price = selections[nthRLine].price;
@@ -226,6 +254,13 @@ const populateBetfairWithOdds = async (data) => {
             price = selections.find(
               (item) =>
                 item.outcomeName.toLowerCase() === nameText.toLowerCase()
+            ).price;
+          } else if (foundMapper.betfairline === 'Shown a card?') {
+            price = selections.find(
+              (item) =>
+                item.outcomeName
+                  .substring(0, item.outcomeName.length - 3)
+                  .toLowerCase() === nameText.toLowerCase()
             ).price;
           }
           if (price > 0 && betfairPrice > 0) {
