@@ -86,11 +86,10 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
               selections.find((s) => s.selectionId === sel.selectionId)
             )
             .filter((sel) => !sel);
-          const newSelections = selections
-            .map((sel) =>
-              oldSelections.find((s) => s.selectionId === sel.selectionId)
-            )
-            .filter((s) => !s);
+          const newSelections = selections.filter(
+            (sel) =>
+              !oldSelections.find((s) => s.selectionId === sel.selectionId)
+          );
           if (newSelections.length > 0) {
             updates.new += newSelections.length;
             await channel.publish('odds-created', newSelections);
