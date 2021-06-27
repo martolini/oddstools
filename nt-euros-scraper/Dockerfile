@@ -23,6 +23,4 @@ RUN yarn
 
 COPY --from=builder /usr/src/app/build build/
 
-
-ENTRYPOINT [ "/sbin/tini", "--", "node", "build/index.js", "fetch-odds --forever"]
-CMD node build/index.js fetch-odds --forever
+CMD /sbin/tini -- node build/index.js fetch-odds --forever
