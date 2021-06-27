@@ -1,34 +1,25 @@
 import $ from 'jquery';
 import Ably from 'ably';
-
+const yesNoOutcome = [
+  {
+    nt: 'Nei',
+    betfair: 'No',
+  },
+  {
+    nt: 'Ja',
+    betfair: 'Yes',
+  },
+];
 const mappers = [
   {
     ntline: 'Begge lag scorer',
     betfairline: 'Begge lag scorer?',
-    outcomes: [
-      {
-        nt: 'Nei',
-        betfair: 'No',
-      },
-      {
-        nt: 'Ja',
-        betfair: 'Yes',
-      },
-    ],
+    outcomes: yesNoOutcome,
   },
   {
     ntline: 'Blir det rødt kort?',
     betfairline: 'Utvisning?',
-    outcomes: [
-      {
-        nt: 'Nei',
-        betfair: 'No',
-      },
-      {
-        nt: 'Ja',
-        betfair: 'Yes',
-      },
-    ],
+    outcomes: yesNoOutcome,
   },
   {
     ntline: 'Uavgjort tilbakebetales',
@@ -72,6 +63,30 @@ const mappers = [
       betfairline: `Cards Over/Under ${e}`,
     })
   ),
+  ...[
+    '1.5',
+    '2.5',
+    '3.5',
+    '4.5',
+    '5.5',
+    '6.5',
+    '7.5',
+    '8.5',
+    '9.5',
+    '10.5',
+    '11.5',
+    '12.5',
+    '13.5',
+    '14.5',
+    '15.5',
+    '16.5',
+    '17.5',
+    '18.5',
+    '19.5',
+  ].map((e) => ({
+    ntline: `Totalt antall hjørnespark - over/under ${e}`,
+    betfairline: `Corners Over/Under ${e}`,
+  })),
   {
     ntline: 'Korrekt resultat',
     betfairline: 'Riktig resultat',
@@ -103,6 +118,10 @@ const mappers = [
   {
     ntline: 'Spiller får kort',
     betfairline: 'Shown a card?',
+  },
+  {
+    ntline: 'Hjørnespark HUB',
+    betfairline: 'Spill på hjørnespark i kampen',
   },
 ];
 
@@ -163,7 +182,12 @@ const populateBetfairWithOdds = async (data) => {
       betfairline: gh.betfairline.replace(homeTeam, awayTeam),
       ntline: gh.ntline.replace(homeTeam, awayTeam),
     }));
-    mappers.push(...newLines, ...goalsHome, ...goalsAway);
+    const winAndNoGoals = [homeTeam, awayTeam].map((team) => ({
+      ntline: `${team} vinner og holder nullen`,
+      betfairline: `${team} vinner og holder nullen`,
+      outcomes: yesNoOutcome,
+    }));
+    mappers.push(...newLines, ...goalsHome, ...goalsAway, ...winAndNoGoals);
   } catch (err) {
     console.error(err);
   }
@@ -214,7 +238,8 @@ const populateBetfairWithOdds = async (data) => {
             }
           } else if (
             foundMapper.betfairline === 'Pause' ||
-            foundMapper.betfairline === 'Kampodds'
+            foundMapper.betfairline === 'Kampodds' ||
+            foundMapper.betfairline === 'Spill på hjørnespark i kampen'
           ) {
             price = getHUBMarkets(selections, nthRLine);
           } else if (foundMapper.ntline.indexOf('Handikap 3-veis') === 0) {
@@ -241,7 +266,7 @@ const populateBetfairWithOdds = async (data) => {
             };
             price = selections[map[nthRLine]].price;
           } else if (
-            / over\/under \d\.\d mål|Cards Over\/Under \d\.\d/.test(
+            / over\/under \d\.\d mål|Cards Over\/Under \d\.\d|Corners Over\/Under \d+\.\d/.test(
               foundMapper.betfairline
             )
           ) {
