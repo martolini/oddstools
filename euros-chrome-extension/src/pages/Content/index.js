@@ -346,7 +346,9 @@ const askForNTOdds = async () => {
     } else {
       console.log(`NO INITIAL STATE...`);
     }
-    await populateBetfairWithOdds(state);
+    try {
+      await populateBetfairWithOdds(state);
+    } catch (err) {}
     channel.subscribe((data) => {
       if (state.length) {
         const sampleEvent = state[0];
@@ -387,11 +389,13 @@ const askForNTOdds = async () => {
       }
       const teams = title.split('–').map((t) => t.trim());
       if (teams[0] && teams[1]) {
-        populateBetfairWithOdds(
-          state.filter(
-            (sel) => sel.homeTeam === teams[0] && sel.awayTeam === teams[1]
-          )
-        );
+        try {
+          populateBetfairWithOdds(
+            state.filter(
+              (sel) => sel.homeTeam === teams[0] && sel.awayTeam === teams[1]
+            )
+          );
+        } catch (err) {}
       }
     }, 5000);
     ably.connection.on('connected', () => {
