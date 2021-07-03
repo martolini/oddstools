@@ -111,6 +111,7 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
               gzip: true,
               resumable: false,
             });
+            console.log(`Updated ${key} with ${updates}`);
           }
         } catch (ex) {
           await file.save(JSON.stringify(selections), {
@@ -126,8 +127,6 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
     },
     { concurrency: 3 }
   );
-  const numberOfUpdates = reduce(updates, (result, value) => result + value, 0);
-  if (numberOfUpdates > 0) console.log(JSON.stringify(updates, null, 2));
 }
 
 yargs(hideBin(process.argv))
