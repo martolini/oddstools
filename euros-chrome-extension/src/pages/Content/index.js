@@ -1,5 +1,4 @@
 import $ from 'jquery';
-import Ably from 'ably';
 const yesNoOutcome = [
   {
     nt: 'Nei',
@@ -335,76 +334,20 @@ const askForNTOdds = async () => {
   });
 };
 
-(async () => {
-  const ably = new Ably.Realtime('D-YYEA.Vhqn1w:Dty77Y99oAPrFkc6');
-  const channel = ably.channels.get('nt-odds');
-  const regexp = new RegExp(
-    'https://www.betfair.com/exchange/plus/no/fotball/uefa-em-2020/*',
-    'i'
-  );
+async function runConditionally() {
+  const regexp = new RegExp('https://www.betfair.com/exchange/plus/.*', 'i');
   if (regexp.test(window.location.href)) {
-    let state = await askForNTOdds();
-    if (state.length) {
-    } else {
-      console.log(`NO INITIAL STATE...`);
-    }
     try {
-      await populateBetfairWithOdds(state);
-    } catch (err) {}
-    channel.subscribe((data) => {
-      if (state.length) {
-        const sampleEvent = state[0];
-        if (sampleEvent) {
-          data.data = data.data.filter(
-            (sel) => (sel || {}).eventId === sampleEvent.eventId
-          );
-        }
+      const odds = await askForNTOdds();
+      if (odds && odds.length) {
+        await populateBetfairWithOdds(odds);
       }
-      switch (data.name) {
-        case 'odds-created':
-          state = [...state, data.data];
-          break;
-        case 'odds-changed':
-          state = state.map(
-            (sel) =>
-              data.data.find((s) => s.selectionId === sel.selectionId) || sel
-          );
-          break;
-        case 'odds-deleted':
-          state = state.filter(
-            (sel) => !data.data.find((s) => s.selectionId === sel.selectionId)
-          );
-          break;
-        default:
-          break;
-      }
-    });
-    let currentTitle = $('span.title > span').first().text();
-    setInterval(async () => {
-      const title = $('span.title > span').first().text();
-      if (!title) {
-        return;
-      }
-      if (currentTitle !== title) {
-        currentTitle = title;
-        state = await askForNTOdds();
-      }
-      const teams = title.split('–').map((t) => t.trim());
-      if (teams[0] && teams[1]) {
-        try {
-          populateBetfairWithOdds(
-            state.filter(
-              (sel) => sel.homeTeam === teams[0] && sel.awayTeam === teams[1]
-            )
-          );
-        } catch (err) {}
-      }
-    }, 5000);
-    ably.connection.on('connected', () => {
-      console.log(`Connected to socket`);
-    });
-    ably.connection.on('failed', () => {
-      console.error(`Failed connecting`);
-    });
+    } catch (ex) {
+      console.error(ex);
+    }
   }
+}
+
+(async () => {
+  setInterval(runConditionally, 5000);
 })();

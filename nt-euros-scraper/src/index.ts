@@ -100,16 +100,24 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
             updates.changed += changedSelections.length;
             await channel.publish('odds-changed', changedSelections);
           }
+          const numberOfUpdates = reduce(
+            updates,
+            (result, value) => result + value,
+            0
+          );
+
+          if (numberOfUpdates > 0) {
+            await file.save(JSON.stringify(selections), {
+              gzip: true,
+              resumable: false,
+            });
+          }
         } catch (ex) {
-          console.log(`Could not find old file.`);
-        }
-        try {
           await file.save(JSON.stringify(selections), {
             gzip: true,
             resumable: false,
           });
-        } catch (ex) {
-          console.log(`failed for ${key}`, ex.message);
+          console.log(`Could not find old file, uploading new`);
         }
         return res.data.data;
       } catch (ex) {
@@ -118,11 +126,7 @@ async function fetchOdds(channel: Ably.Types.RealtimeChannelCallbacks) {
     },
     { concurrency: 3 }
   );
-  const numberOfUpdates = reduce(
-    updates,
-    (result, value, key) => result + value,
-    0
-  );
+  const numberOfUpdates = reduce(updates, (result, value) => result + value, 0);
   if (numberOfUpdates > 0) console.log(JSON.stringify(updates, null, 2));
 }
 

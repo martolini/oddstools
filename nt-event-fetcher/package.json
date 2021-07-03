@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "scripts": {
+    "start": "ts-node src/index.ts"
+  },
   "dependencies": {
     "@google-cloud/storage": "^5.8.5",
     "cheerio": "^1.0.0-rc.10",
